@@ -1,0 +1,2240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>菜鸟库存监控看板 - 2026-06-08</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fa;color:#1a1a2e;line-height:1.6}
+.container{max-width:1600px;margin:0 auto;padding:20px}
+header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:28px 32px;border-radius:16px;margin-bottom:20px;box-shadow:0 4px 20px rgba(102,126,234,0.3)}
+header h1{font-size:26px;font-weight:700;margin-bottom:6px}
+header p{opacity:.9;font-size:13px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:white;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-left:4px solid}
+.stat-card.total{border-color:#667eea}
+.stat-card.danger{border-color:#ef5350}
+.stat-card.warning{border-color:#ff9800}
+.stat-card.safe{border-color:#4caf50}
+.stat-card.warehouse{border-color:#2196f3}
+.stat-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px}
+.stat-value{font-size:28px;font-weight:700;margin:4px 0}
+.stat-desc{font-size:11px;color:#aaa}
+
+.section{background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.section h2{font-size:18px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;margin-bottom:20px}
+.chart-box{background:white;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.chart-box h3{font-size:14px;font-weight:600;margin-bottom:12px;color:#555}
+.chart-container{position:relative;height:280px}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.toolbar h2{font-size:18px;font-weight:600}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:7px 14px;border-radius:8px;border:1px solid #e0e0e0;background:white;color:#555;font-size:12px;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn:hover,.btn.active{background:#667eea;color:white;border-color:#667eea}
+.btn-export{background:#4caf50;color:white;border-color:#4caf50}
+
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px}
+.product-card{background:white;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);border-top:4px solid #e0e0e0;transition:transform .2s}
+.product-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.1)}
+.product-card.danger{border-top-color:#ef5350}
+.product-card.warning{border-top-color:#ff9800}
+.product-card.safe{border-top-color:#4caf50}
+
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.card-header .info h3{font-size:15px;font-weight:600;margin-bottom:3px}
+.card-header .info .code{font-size:11px;color:#999}
+.badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge.danger{background:#ffebee;color:#c62828}
+.badge.warning{background:#fff3e0;color:#e65100}
+.badge.safe{background:#e8f5e9;color:#2e7d32}
+
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.metric{text-align:center;padding:8px;background:#f8f9fa;border-radius:8px}
+.metric .num{font-size:17px;font-weight:700}
+.metric .label{font-size:10px;color:#888;margin-top:2px}
+
+.warehouse-bars{margin-bottom:14px}
+.wh-bar{display:flex;align-items:center;margin-bottom:6px;font-size:12px}
+.wh-bar .wh-name{width:100px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wh-bar .wh-track{flex:1;height:18px;background:#f0f0f0;border-radius:9px;overflow:hidden;margin:0 8px;position:relative}
+.wh-bar .wh-fill{height:100%;border-radius:9px;transition:width .5s ease}
+.wh-bar .wh-val{width:50px;text-align:right;color:#555;font-weight:600}
+
+.input-group{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.input-group label{font-size:12px;color:#666;min-width:80px}
+.input-group input{width:70px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;text-align:center}
+
+.suggestion{padding:10px 14px;border-radius:8px;font-size:12px;margin-top:10px}
+.suggestion.danger{background:#ffebee;color:#c62828}
+.suggestion.warning{background:#fff3e0;color:#e65100}
+.suggestion.safe{background:#e8f5e9;color:#2e7d32}
+
+.mini-chart{height:100px;margin:10px 0}
+
+.replenish-table{width:100%;border-collapse:collapse;font-size:12px}
+.replenish-table th{background:#667eea;color:white;padding:10px;text-align:left;font-weight:600}
+.replenish-table td{padding:10px;border-bottom:1px solid #f0f0f0}
+.replenish-table tr:hover{background:#f8f9fa}
+.replenish-table .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+
+.footer{text-align:center;padding:20px;color:#999;font-size:12px}
+.hidden{display:none!important}
+
+@media(max-width:768px){
+.product-grid{grid-template-columns:1fr}
+.charts-grid{grid-template-columns:1fr}
+.metrics{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>菜鸟库存监控看板</h1>
+<p>数据更新时间：2026/6/8 10:52:00 · 28 个产品 · 6 个仓库 · 共 110 条记录</p>
+</header>
+
+<div class="stats">
+<div class="stat-card total"><div class="stat-label">总 SKU</div><div class="stat-value">28</div><div class="stat-desc">监控产品数</div></div>
+<div class="stat-card danger"><div class="stat-label">库存不足</div><div class="stat-value" style="color:#ef5350">3</div><div class="stat-desc">需立即补货</div></div>
+<div class="stat-card warning"><div class="stat-label">即将缺货</div><div class="stat-value" style="color:#ff9800">7</div><div class="stat-desc">建议安排补货</div></div>
+<div class="stat-card safe"><div class="stat-label">库存充足</div><div class="stat-value" style="color:#4caf50">18</div><div class="stat-desc">状态良好</div></div>
+<div class="stat-card warehouse"><div class="stat-label">总良品库存</div><div class="stat-value">3330</div><div class="stat-desc">可用库存合计</div></div>
+<div class="stat-card warehouse"><div class="stat-label">仓库数</div><div class="stat-value">6</div><div class="stat-desc">分布仓点</div></div>
+</div>
+
+<div class="charts-grid">
+<div class="chart-box">
+<h3>各仓库库存占比</h3>
+<div class="chart-container"><canvas id="warehousePie"></canvas></div>
+</div>
+<div class="chart-box">
+<h3>库存状态分布</h3>
+<div class="chart-container"><canvas id="statusPie"></canvas></div>
+</div>
+</div>
+
+<div class="section">
+<div class="toolbar">
+<h2>产品库存明细与补货建议</h2>
+<div class="filters">
+<button class="btn active" onclick="filter('all')">全部</button>
+<button class="btn" onclick="filter('danger')">库存不足</button>
+<button class="btn" onclick="filter('warning')">即将缺货</button>
+<button class="btn" onclick="filter('safe')">库存充足</button>
+<button class="btn btn-export" onclick="exportTable()">导出补货表</button>
+</div>
+</div>
+
+<div class="product-grid" id="productGrid">
+
+<div class="product-card danger" data-status="danger" data-name="夸克AI眼镜S1 MiniMag备用电池黑色">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1 MiniMag备用电池黑色</h3>
+<div class="code">SP16117 · 条码 6977473963740</div>
+</div>
+<div class="badge danger">库存不足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ef5350">0</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">0</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">1</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-0" value="5" min="0" onchange="updateProduct(0)">
+<label>安全库存</label>
+<input type="number" id="safety-0" value="10" min="0" onchange="updateProduct(0)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:0%;background:#667eea"></div>
+</div>
+<div class="wh-val">0 (0%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-0"></canvas></div>
+<div class="suggestion danger" id="sugg-0">
+<strong>建议补货 25 件</strong>（覆盖 3 周消耗，当前可售约 0 天）
+</div>
+</div>
+
+<div class="product-card danger" data-status="danger" data-name="千问AI眼镜G1_TG_SG02_威灵顿框衬片_2+32GB_长续航版">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1_TG_SG02_威灵顿框衬片_2+32GB_长续航版</h3>
+<div class="code">SP16538 · 条码 6977473969087</div>
+</div>
+<div class="badge danger">库存不足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ef5350">24</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">11</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">1</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-1" value="15" min="0" onchange="updateProduct(1)">
+<label>安全库存</label>
+<input type="number" id="safety-1" value="30" min="0" onchange="updateProduct(1)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:100%;background:#667eea"></div>
+</div>
+<div class="wh-val">24 (100.0%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-1"></canvas></div>
+<div class="suggestion danger" id="sugg-1">
+<strong>建议补货 51 件</strong>（覆盖 3 周消耗，当前可售约 11 天）
+</div>
+</div>
+
+<div class="product-card danger" data-status="danger" data-name="夸克AI眼镜S1圆框款玳瑁色">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1圆框款玳瑁色</h3>
+<div class="code">SP16112 · 条码 6977473963696</div>
+</div>
+<div class="badge danger">库存不足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ef5350">29</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">8</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">14</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">3</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-2" value="15" min="0" onchange="updateProduct(2)">
+<label>安全库存</label>
+<input type="number" id="safety-2" value="30" min="0" onchange="updateProduct(2)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:56.849999999999994%;background:#667eea"></div>
+</div>
+<div class="wh-val">11 (37.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:46.5%;background:#764ba2"></div>
+</div>
+<div class="wh-val">9 (31.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:46.5%;background:#f093fb"></div>
+</div>
+<div class="wh-val">9 (31.0%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-2"></canvas></div>
+<div class="suggestion danger" id="sugg-2">
+<strong>建议补货 46 件</strong>（覆盖 3 周消耗，当前可售约 14 天）
+</div>
+</div>
+
+<div class="product-card warning" data-status="warning" data-name="夸克AI眼镜S1 充电盒黑色">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1 充电盒黑色</h3>
+<div class="code">SP16115 · 条码 6977473963726</div>
+</div>
+<div class="badge warning">即将缺货</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ff9800">33</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">15</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">15</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-3" value="15" min="0" onchange="updateProduct(3)">
+<label>安全库存</label>
+<input type="number" id="safety-3" value="30" min="0" onchange="updateProduct(3)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:68.25%;background:#667eea"></div>
+</div>
+<div class="wh-val">15 (45.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:49.949999999999996%;background:#764ba2"></div>
+</div>
+<div class="wh-val">11 (33.3%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:18.15%;background:#f093fb"></div>
+</div>
+<div class="wh-val">4 (12.1%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:13.649999999999999%;background:#f5576c"></div>
+</div>
+<div class="wh-val">3 (9.1%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-3"></canvas></div>
+<div class="suggestion warning" id="sugg-3">
+<strong>建议补货 42 件</strong>（覆盖 3 周消耗，当前可售约 15 天）
+</div>
+</div>
+
+<div class="product-card warning" data-status="warning" data-name="夸克AI眼镜 G1 风尚眉框 2+32GB">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜 G1 风尚眉框 2+32GB</h3>
+<div class="code">SP15654 · 条码 6977473964365</div>
+</div>
+<div class="badge warning">即将缺货</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ff9800">38</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">18</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">6</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-4" value="15" min="0" onchange="updateProduct(4)">
+<label>安全库存</label>
+<input type="number" id="safety-4" value="30" min="0" onchange="updateProduct(4)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:43.349999999999994%;background:#667eea"></div>
+</div>
+<div class="wh-val">11 (28.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="西北西安未央">西北西安未央</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:31.650000000000002%;background:#764ba2"></div>
+</div>
+<div class="wh-val">8 (21.1%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:27.599999999999998%;background:#f093fb"></div>
+</div>
+<div class="wh-val">7 (18.4%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:19.799999999999997%;background:#f5576c"></div>
+</div>
+<div class="wh-val">5 (13.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="东北沈阳于洪">东北沈阳于洪</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:15.75%;background:#4facfe"></div>
+</div>
+<div class="wh-val">4 (10.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:11.850000000000001%;background:#00f2fe"></div>
+</div>
+<div class="wh-val">3 (7.9%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-4"></canvas></div>
+<div class="suggestion warning" id="sugg-4">
+<strong>建议补货 37 件</strong>（覆盖 3 周消耗，当前可售约 18 天）
+</div>
+</div>
+
+<div class="product-card warning" data-status="warning" data-name="夸克AI眼镜S1 方框太阳镜夹片黑色">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1 方框太阳镜夹片黑色</h3>
+<div class="code">SP16118 · 条码 6977473963757</div>
+</div>
+<div class="badge warning">即将缺货</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ff9800">38</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">18</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">18</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">3</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-5" value="15" min="0" onchange="updateProduct(5)">
+<label>安全库存</label>
+<input type="number" id="safety-5" value="30" min="0" onchange="updateProduct(5)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:82.94999999999999%;background:#667eea"></div>
+</div>
+<div class="wh-val">21 (55.3%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:59.25%;background:#764ba2"></div>
+</div>
+<div class="wh-val">15 (39.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:7.949999999999999%;background:#f093fb"></div>
+</div>
+<div class="wh-val">2 (5.3%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-5"></canvas></div>
+<div class="suggestion warning" id="sugg-5">
+<strong>建议补货 37 件</strong>（覆盖 3 周消耗，当前可售约 18 天）
+</div>
+</div>
+
+<div class="product-card warning" data-status="warning" data-name="夸克AI眼镜S1 圆框太阳镜夹片黑色">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1 圆框太阳镜夹片黑色</h3>
+<div class="code">SP15660 · 条码 6977473964457</div>
+</div>
+<div class="badge warning">即将缺货</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ff9800">40</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">19</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">3</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-6" value="15" min="0" onchange="updateProduct(6)">
+<label>安全库存</label>
+<input type="number" id="safety-6" value="30" min="0" onchange="updateProduct(6)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:45%;background:#667eea"></div>
+</div>
+<div class="wh-val">12 (30.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:37.5%;background:#764ba2"></div>
+</div>
+<div class="wh-val">10 (25.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:33.75%;background:#f093fb"></div>
+</div>
+<div class="wh-val">9 (22.5%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-6"></canvas></div>
+<div class="suggestion warning" id="sugg-6">
+<strong>建议补货 35 件</strong>（覆盖 3 周消耗，当前可售约 19 天）
+</div>
+</div>
+
+<div class="product-card warning" data-status="warning" data-name="千问AI眼镜G1_TG_SG02_威灵顿框衬片_2+32GB">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1_TG_SG02_威灵顿框衬片_2+32GB</h3>
+<div class="code">SP16537 · 条码 6977473969070</div>
+</div>
+<div class="badge warning">即将缺货</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ff9800">40</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">19</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">1</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-7" value="15" min="0" onchange="updateProduct(7)">
+<label>安全库存</label>
+<input type="number" id="safety-7" value="30" min="0" onchange="updateProduct(7)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:100%;background:#667eea"></div>
+</div>
+<div class="wh-val">40 (100.0%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-7"></canvas></div>
+<div class="suggestion warning" id="sugg-7">
+<strong>建议补货 35 件</strong>（覆盖 3 周消耗，当前可售约 19 天）
+</div>
+</div>
+
+<div class="product-card warning" data-status="warning" data-name="夸克AI眼镜通用type-c充电线">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜通用type-c充电线</h3>
+<div class="code">SP15600 · 条码 6977473963856</div>
+</div>
+<div class="badge warning">即将缺货</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ff9800">43</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">20</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-8" value="15" min="0" onchange="updateProduct(8)">
+<label>安全库存</label>
+<input type="number" id="safety-8" value="30" min="0" onchange="updateProduct(8)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:48.900000000000006%;background:#667eea"></div>
+</div>
+<div class="wh-val">14 (32.6%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:45.3%;background:#764ba2"></div>
+</div>
+<div class="wh-val">13 (30.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:34.95%;background:#f093fb"></div>
+</div>
+<div class="wh-val">10 (23.3%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:21%;background:#f5576c"></div>
+</div>
+<div class="wh-val">6 (14.0%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-8"></canvas></div>
+<div class="suggestion warning" id="sugg-8">
+<strong>建议补货 32 件</strong>（覆盖 3 周消耗，当前可售约 20 天）
+</div>
+</div>
+
+<div class="product-card warning" data-status="warning" data-name="夸克AI眼镜S1方框款黑色">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1方框款黑色</h3>
+<div class="code">SP16109 · 条码 6977473963665</div>
+</div>
+<div class="badge warning">即将缺货</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#ff9800">44</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">21</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">1</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-9" value="15" min="0" onchange="updateProduct(9)">
+<label>安全库存</label>
+<input type="number" id="safety-9" value="30" min="0" onchange="updateProduct(9)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:100%;background:#667eea"></div>
+</div>
+<div class="wh-val">44 (100.0%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-9"></canvas></div>
+<div class="suggestion warning" id="sugg-9">
+<strong>建议补货 31 件</strong>（覆盖 3 周消耗，当前可售约 21 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="夸克AI眼镜G1_TG_SG02_眉框黑色_2+32GB_长续航版">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜G1_TG_SG02_眉框黑色_2+32GB_长续航版</h3>
+<div class="code">SP16202 · 条码 6977473965959</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">64</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">30</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">6</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-10" value="15" min="0" onchange="updateProduct(10)">
+<label>安全库存</label>
+<input type="number" id="safety-10" value="30" min="0" onchange="updateProduct(10)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:37.5%;background:#667eea"></div>
+</div>
+<div class="wh-val">16 (25.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:37.5%;background:#764ba2"></div>
+</div>
+<div class="wh-val">16 (25.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="东北沈阳于洪">东北沈阳于洪</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:18.75%;background:#f093fb"></div>
+</div>
+<div class="wh-val">8 (12.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:18.75%;background:#f5576c"></div>
+</div>
+<div class="wh-val">8 (12.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="西北西安未央">西北西安未央</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:18.75%;background:#4facfe"></div>
+</div>
+<div class="wh-val">8 (12.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:18.75%;background:#00f2fe"></div>
+</div>
+<div class="wh-val">8 (12.5%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-10"></canvas></div>
+<div class="suggestion safe" id="sugg-10">
+库存充足，无需补货（当前可售约 30 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="夸克AI眼镜S1 充电夹黑色">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1 充电夹黑色</h3>
+<div class="code">SP16114 · 条码 6977473963719</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">68</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">32</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-11" value="15" min="0" onchange="updateProduct(11)">
+<label>安全库存</label>
+<input type="number" id="safety-11" value="30" min="0" onchange="updateProduct(11)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:44.099999999999994%;background:#667eea"></div>
+</div>
+<div class="wh-val">20 (29.4%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:41.849999999999994%;background:#764ba2"></div>
+</div>
+<div class="wh-val">19 (27.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:33.150000000000006%;background:#f093fb"></div>
+</div>
+<div class="wh-val">15 (22.1%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:30.900000000000002%;background:#f5576c"></div>
+</div>
+<div class="wh-val">14 (20.6%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-11"></canvas></div>
+<div class="suggestion safe" id="sugg-11">
+库存充足，无需补货（当前可售约 32 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="夸克AI眼镜S1 MiniBag换电仓黑色">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1 MiniBag换电仓黑色</h3>
+<div class="code">SP16113 · 条码 6977473963702</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">68</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">32</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-12" value="15" min="0" onchange="updateProduct(12)">
+<label>安全库存</label>
+<input type="number" id="safety-12" value="30" min="0" onchange="updateProduct(12)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:44.099999999999994%;background:#667eea"></div>
+</div>
+<div class="wh-val">20 (29.4%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:41.849999999999994%;background:#764ba2"></div>
+</div>
+<div class="wh-val">19 (27.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:33.150000000000006%;background:#f093fb"></div>
+</div>
+<div class="wh-val">15 (22.1%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:30.900000000000002%;background:#f5576c"></div>
+</div>
+<div class="wh-val">14 (20.6%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-12"></canvas></div>
+<div class="suggestion safe" id="sugg-12">
+库存充足，无需补货（当前可售约 32 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="夸克AI眼镜S1方框款黑色长续航版">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1方框款黑色长续航版</h3>
+<div class="code">SP15603 · 条码 6977473963887</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">72</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">34</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">3</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-13" value="15" min="0" onchange="updateProduct(13)">
+<label>安全库存</label>
+<input type="number" id="safety-13" value="30" min="0" onchange="updateProduct(13)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:83.4%;background:#667eea"></div>
+</div>
+<div class="wh-val">40 (55.6%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:60.449999999999996%;background:#764ba2"></div>
+</div>
+<div class="wh-val">29 (40.3%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:6.300000000000001%;background:#f093fb"></div>
+</div>
+<div class="wh-val">3 (4.2%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-13"></canvas></div>
+<div class="suggestion safe" id="sugg-13">
+库存充足，无需补货（当前可售约 34 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜G1 风尚眉框 2+32GB 蔡司-防蓝光平光镜版标准版">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1 风尚眉框 2+32GB 蔡司-防蓝光平光镜版标准版</h3>
+<div class="code">SP16355 · 条码 6977473967250</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">78</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">36</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">6</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-14" value="15" min="0" onchange="updateProduct(14)">
+<label>安全库存</label>
+<input type="number" id="safety-14" value="30" min="0" onchange="updateProduct(14)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:44.25%;background:#667eea"></div>
+</div>
+<div class="wh-val">23 (29.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:32.7%;background:#764ba2"></div>
+</div>
+<div class="wh-val">17 (21.8%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:25.049999999999997%;background:#f093fb"></div>
+</div>
+<div class="wh-val">13 (16.7%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="西北西安未央">西北西安未央</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:19.200000000000003%;background:#f5576c"></div>
+</div>
+<div class="wh-val">10 (12.8%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:19.200000000000003%;background:#4facfe"></div>
+</div>
+<div class="wh-val">10 (12.8%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="东北沈阳于洪">东北沈阳于洪</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:9.600000000000001%;background:#00f2fe"></div>
+</div>
+<div class="wh-val">5 (6.4%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-14"></canvas></div>
+<div class="suggestion safe" id="sugg-14">
+库存充足，无需补货（当前可售约 36 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜通用清洁巾">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜通用清洁巾</h3>
+<div class="code">SP16345 · 条码 6977473967205</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">87</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">41</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-15" value="15" min="0" onchange="updateProduct(15)">
+<label>安全库存</label>
+<input type="number" id="safety-15" value="30" min="0" onchange="updateProduct(15)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:46.5%;background:#667eea"></div>
+</div>
+<div class="wh-val">27 (31.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:44.849999999999994%;background:#764ba2"></div>
+</div>
+<div class="wh-val">26 (29.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:29.25%;background:#f093fb"></div>
+</div>
+<div class="wh-val">17 (19.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:29.25%;background:#f5576c"></div>
+</div>
+<div class="wh-val">17 (19.5%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-15"></canvas></div>
+<div class="suggestion safe" id="sugg-15">
+库存充足，无需补货（当前可售约 41 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜S1圆框款黑色">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜S1圆框款黑色</h3>
+<div class="code">SP16367 · 条码 6977473967373</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">95</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">44</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-16" value="15" min="0" onchange="updateProduct(16)">
+<label>安全库存</label>
+<input type="number" id="safety-16" value="30" min="0" onchange="updateProduct(16)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:44.25%;background:#667eea"></div>
+</div>
+<div class="wh-val">28 (29.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:44.25%;background:#764ba2"></div>
+</div>
+<div class="wh-val">28 (29.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:31.650000000000002%;background:#f093fb"></div>
+</div>
+<div class="wh-val">20 (21.1%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:30%;background:#f5576c"></div>
+</div>
+<div class="wh-val">19 (20.0%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-16"></canvas></div>
+<div class="suggestion safe" id="sugg-16">
+库存充足，无需补货（当前可售约 44 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="夸克AI眼镜S1圆框款玳瑁色长续航版">
+<div class="card-header">
+<div class="info">
+<h3>夸克AI眼镜S1圆框款玳瑁色长续航版</h3>
+<div class="code">SP15605 · 条码 6977473963917</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">96</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">8</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">45</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">3</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-17" value="15" min="0" onchange="updateProduct(17)">
+<label>安全库存</label>
+<input type="number" id="safety-17" value="30" min="0" onchange="updateProduct(17)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:82.80000000000001%;background:#667eea"></div>
+</div>
+<div class="wh-val">53 (55.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:65.69999999999999%;background:#764ba2"></div>
+</div>
+<div class="wh-val">42 (43.8%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:1.5%;background:#f093fb"></div>
+</div>
+<div class="wh-val">1 (1.0%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-17"></canvas></div>
+<div class="suggestion safe" id="sugg-17">
+库存充足，无需补货（当前可售约 45 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜S1方框款黑色">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜S1方框款黑色</h3>
+<div class="code">SP16302 · 条码 6977473966710</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">104</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">8</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">49</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-18" value="15" min="0" onchange="updateProduct(18)">
+<label>安全库存</label>
+<input type="number" id="safety-18" value="30" min="0" onchange="updateProduct(18)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:50.550000000000004%;background:#667eea"></div>
+</div>
+<div class="wh-val">35 (33.7%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:41.849999999999994%;background:#764ba2"></div>
+</div>
+<div class="wh-val">29 (27.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:37.5%;background:#f093fb"></div>
+</div>
+<div class="wh-val">26 (25.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:20.25%;background:#f5576c"></div>
+</div>
+<div class="wh-val">14 (13.5%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-18"></canvas></div>
+<div class="suggestion safe" id="sugg-18">
+库存充足，无需补货（当前可售约 49 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜G1_TG_SG02_大方框黑色_2+64GB">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1_TG_SG02_大方框黑色_2+64GB</h3>
+<div class="code">SP16164 · 条码 6977473965133</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">112</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">52</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">6</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-19" value="15" min="0" onchange="updateProduct(19)">
+<label>安全库存</label>
+<input type="number" id="safety-19" value="30" min="0" onchange="updateProduct(19)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:46.95%;background:#667eea"></div>
+</div>
+<div class="wh-val">35 (31.3%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:29.400000000000002%;background:#764ba2"></div>
+</div>
+<div class="wh-val">22 (19.6%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:28.200000000000003%;background:#f093fb"></div>
+</div>
+<div class="wh-val">21 (18.8%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:20.1%;background:#f5576c"></div>
+</div>
+<div class="wh-val">15 (13.4%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="西北西安未央">西北西安未央</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:18.75%;background:#4facfe"></div>
+</div>
+<div class="wh-val">14 (12.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="东北沈阳于洪">东北沈阳于洪</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:6.75%;background:#00f2fe"></div>
+</div>
+<div class="wh-val">5 (4.5%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-19"></canvas></div>
+<div class="suggestion safe" id="sugg-19">
+库存充足，无需补货（当前可售约 52 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜G1_TG_SG02_大方框黑色_2+64GB_长续航版">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1_TG_SG02_大方框黑色_2+64GB_长续航版</h3>
+<div class="code">SP16204 · 条码 6977473965621</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">210</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">59</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">6</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-20" value="25" min="0" onchange="updateProduct(20)">
+<label>安全库存</label>
+<input type="number" id="safety-20" value="50" min="0" onchange="updateProduct(20)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:43.5%;background:#667eea"></div>
+</div>
+<div class="wh-val">61 (29.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:30%;background:#764ba2"></div>
+</div>
+<div class="wh-val">42 (20.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:26.400000000000002%;background:#f093fb"></div>
+</div>
+<div class="wh-val">37 (17.6%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:23.549999999999997%;background:#f5576c"></div>
+</div>
+<div class="wh-val">33 (15.7%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="西北西安未央">西北西安未央</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:16.5%;background:#4facfe"></div>
+</div>
+<div class="wh-val">23 (11.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="东北沈阳于洪">东北沈阳于洪</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:10.05%;background:#00f2fe"></div>
+</div>
+<div class="wh-val">14 (6.7%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-20"></canvas></div>
+<div class="suggestion safe" id="sugg-20">
+库存充足，无需补货（当前可售约 59 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜S1方框款黑色长续航版">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜S1方框款黑色长续航版</h3>
+<div class="code">SP16304 · 条码 6977473966734</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">242</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">68</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-21" value="25" min="0" onchange="updateProduct(21)">
+<label>安全库存</label>
+<input type="number" id="safety-21" value="50" min="0" onchange="updateProduct(21)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:47.7%;background:#667eea"></div>
+</div>
+<div class="wh-val">77 (31.8%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:42.150000000000006%;background:#764ba2"></div>
+</div>
+<div class="wh-val">68 (28.1%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:32.849999999999994%;background:#f093fb"></div>
+</div>
+<div class="wh-val">53 (21.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:27.299999999999997%;background:#f5576c"></div>
+</div>
+<div class="wh-val">44 (18.2%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-21"></canvas></div>
+<div class="suggestion safe" id="sugg-21">
+库存充足，无需补货（当前可售约 68 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜G1风尚眉框 2+32GB 蔡司-防蓝光平光镜版长续航版">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1风尚眉框 2+32GB 蔡司-防蓝光平光镜版长续航版</h3>
+<div class="code">SP16356 · 条码 6977473967267</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">149</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">70</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">5</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-22" value="15" min="0" onchange="updateProduct(22)">
+<label>安全库存</label>
+<input type="number" id="safety-22" value="30" min="0" onchange="updateProduct(22)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:43.349999999999994%;background:#667eea"></div>
+</div>
+<div class="wh-val">43 (28.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:30.150000000000002%;background:#764ba2"></div>
+</div>
+<div class="wh-val">30 (20.1%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:22.200000000000003%;background:#f093fb"></div>
+</div>
+<div class="wh-val">22 (14.8%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="西北西安未央">西北西安未央</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:18.15%;background:#f5576c"></div>
+</div>
+<div class="wh-val">18 (12.1%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="东北沈阳于洪">东北沈阳于洪</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:14.100000000000001%;background:#4facfe"></div>
+</div>
+<div class="wh-val">14 (9.4%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-22"></canvas></div>
+<div class="suggestion safe" id="sugg-22">
+库存充足，无需补货（当前可售约 70 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜S1 MiniMag备用电池黑色">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜S1 MiniMag备用电池黑色</h3>
+<div class="code">SP16341 · 条码 6977473967168</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">152</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">71</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">2</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-23" value="15" min="0" onchange="updateProduct(23)">
+<label>安全库存</label>
+<input type="number" id="safety-23" value="30" min="0" onchange="updateProduct(23)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:88.80000000000001%;background:#667eea"></div>
+</div>
+<div class="wh-val">90 (59.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:61.199999999999996%;background:#764ba2"></div>
+</div>
+<div class="wh-val">62 (40.8%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-23"></canvas></div>
+<div class="suggestion safe" id="sugg-23">
+库存充足，无需补货（当前可售约 71 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜G1_MiniMag备用电池_TG_SG02_P04">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1_MiniMag备用电池_TG_SG02_P04</h3>
+<div class="code">SP16155 · 条码 6977473964938</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">266</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">74</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-24" value="25" min="0" onchange="updateProduct(24)">
+<label>安全库存</label>
+<input type="number" id="safety-24" value="50" min="0" onchange="updateProduct(24)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:37.8%;background:#667eea"></div>
+</div>
+<div class="wh-val">67 (25.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:36.599999999999994%;background:#764ba2"></div>
+</div>
+<div class="wh-val">65 (24.4%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="西北西安未央">西北西安未央</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:23.1%;background:#f093fb"></div>
+</div>
+<div class="wh-val">41 (15.4%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="东北沈阳于洪">东北沈阳于洪</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:7.949999999999999%;background:#f5576c"></div>
+</div>
+<div class="wh-val">14 (5.3%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-24"></canvas></div>
+<div class="suggestion safe" id="sugg-24">
+库存充足，无需补货（当前可售约 74 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜S1圆框款黑色长续航版">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜S1圆框款黑色长续航版</h3>
+<div class="code">SP16368 · 条码 6977473967380</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">187</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">87</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-25" value="15" min="0" onchange="updateProduct(25)">
+<label>安全库存</label>
+<input type="number" id="safety-25" value="30" min="0" onchange="updateProduct(25)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:45.75%;background:#667eea"></div>
+</div>
+<div class="wh-val">57 (30.5%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:44.099999999999994%;background:#764ba2"></div>
+</div>
+<div class="wh-val">55 (29.4%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:31.349999999999998%;background:#f093fb"></div>
+</div>
+<div class="wh-val">39 (20.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:28.950000000000003%;background:#f5576c"></div>
+</div>
+<div class="wh-val">36 (19.3%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-25"></canvas></div>
+<div class="suggestion safe" id="sugg-25">
+库存充足，无需补货（当前可售约 87 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜G1礼盒版">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1礼盒版</h3>
+<div class="code">SP16433 · 条码 6977473968073</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">397</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">111</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">4</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-26" value="25" min="0" onchange="updateProduct(26)">
+<label>安全库存</label>
+<input type="number" id="safety-26" value="50" min="0" onchange="updateProduct(26)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:39.3%;background:#667eea"></div>
+</div>
+<div class="wh-val">104 (26.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:39.3%;background:#764ba2"></div>
+</div>
+<div class="wh-val">104 (26.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:36.3%;background:#f093fb"></div>
+</div>
+<div class="wh-val">96 (24.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:35.099999999999994%;background:#f5576c"></div>
+</div>
+<div class="wh-val">93 (23.4%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-26"></canvas></div>
+<div class="suggestion safe" id="sugg-26">
+库存充足，无需补货（当前可售约 111 天）
+</div>
+</div>
+
+<div class="product-card safe" data-status="safe" data-name="千问AI眼镜G1 MiniBag换电仓_TG_SG02_P01">
+<div class="card-header">
+<div class="info">
+<h3>千问AI眼镜G1 MiniBag换电仓_TG_SG02_P01</h3>
+<div class="code">SP16154 · 条码 6977473964921</div>
+</div>
+<div class="badge safe">库存充足</div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="num" style="color:#4caf50">554</div><div class="label">良品可用</div></div>
+<div class="metric"><div class="num">0</div><div class="label">在途库存</div></div>
+<div class="metric"><div class="num">155</div><div class="label">预计可售天数</div></div>
+<div class="metric"><div class="num">6</div><div class="label">分布仓库</div></div>
+</div>
+<div class="input-group">
+<label>周均销量</label>
+<input type="number" id="sales-27" value="25" min="0" onchange="updateProduct(27)">
+<label>安全库存</label>
+<input type="number" id="safety-27" value="50" min="0" onchange="updateProduct(27)">
+</div>
+<div class="warehouse-bars">
+
+<div class="wh-bar">
+<div class="wh-name" title="华东嘉兴南湖">华东嘉兴南湖</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:44.400000000000006%;background:#667eea"></div>
+</div>
+<div class="wh-val">164 (29.6%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华南佛山三水">华南佛山三水</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:30.299999999999997%;background:#764ba2"></div>
+</div>
+<div class="wh-val">112 (20.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华中武汉">华中武汉</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:30.299999999999997%;background:#f093fb"></div>
+</div>
+<div class="wh-val">112 (20.2%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="华北天津武清">华北天津武清</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:22.5%;background:#f5576c"></div>
+</div>
+<div class="wh-val">83 (15.0%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="西北西安未央">西北西安未央</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:14.850000000000001%;background:#4facfe"></div>
+</div>
+<div class="wh-val">55 (9.9%)</div>
+</div>
+
+<div class="wh-bar">
+<div class="wh-name" title="东北沈阳于洪">东北沈阳于洪</div>
+<div class="wh-track">
+<div class="wh-fill" style="width:7.6499999999999995%;background:#00f2fe"></div>
+</div>
+<div class="wh-val">28 (5.1%)</div>
+</div>
+
+</div>
+<div class="mini-chart"><canvas id="chart-27"></canvas></div>
+<div class="suggestion safe" id="sugg-27">
+库存充足，无需补货（当前可售约 155 天）
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="section">
+<h2>补货建议汇总表</h2>
+<table class="replenish-table" id="replenishTable">
+<thead>
+<tr>
+<th>产品名称</th><th>编码</th><th>状态</th><th>良品可用</th><th>周销量</th><th>可售天数</th><th>建议补货量</th><th>主分布仓</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+<td>夸克AI眼镜S1 MiniMag备用电池黑色</td>
+<td>SP16117</td>
+<td><span class="status-dot" style="background:#ef5350"></span>库存不足</td>
+<td>0</td>
+<td>5</td>
+<td>0</td>
+<td style="font-weight:700;color:#ef5350">25</td>
+<td>华南佛山三水</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1_TG_SG02_威灵顿框衬片_2+32GB_长续航版</td>
+<td>SP16538</td>
+<td><span class="status-dot" style="background:#ef5350"></span>库存不足</td>
+<td>24</td>
+<td>15</td>
+<td>11</td>
+<td style="font-weight:700;color:#ef5350">51</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1圆框款玳瑁色</td>
+<td>SP16112</td>
+<td><span class="status-dot" style="background:#ef5350"></span>库存不足</td>
+<td>29</td>
+<td>15</td>
+<td>14</td>
+<td style="font-weight:700;color:#ef5350">46</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1 充电盒黑色</td>
+<td>SP16115</td>
+<td><span class="status-dot" style="background:#ff9800"></span>即将缺货</td>
+<td>33</td>
+<td>15</td>
+<td>15</td>
+<td style="font-weight:700;color:#ef5350">42</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜 G1 风尚眉框 2+32GB</td>
+<td>SP15654</td>
+<td><span class="status-dot" style="background:#ff9800"></span>即将缺货</td>
+<td>38</td>
+<td>15</td>
+<td>18</td>
+<td style="font-weight:700;color:#ef5350">37</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1 方框太阳镜夹片黑色</td>
+<td>SP16118</td>
+<td><span class="status-dot" style="background:#ff9800"></span>即将缺货</td>
+<td>38</td>
+<td>15</td>
+<td>18</td>
+<td style="font-weight:700;color:#ef5350">37</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1 圆框太阳镜夹片黑色</td>
+<td>SP15660</td>
+<td><span class="status-dot" style="background:#ff9800"></span>即将缺货</td>
+<td>40</td>
+<td>15</td>
+<td>19</td>
+<td style="font-weight:700;color:#ef5350">35</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1_TG_SG02_威灵顿框衬片_2+32GB</td>
+<td>SP16537</td>
+<td><span class="status-dot" style="background:#ff9800"></span>即将缺货</td>
+<td>40</td>
+<td>15</td>
+<td>19</td>
+<td style="font-weight:700;color:#ef5350">35</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜通用type-c充电线</td>
+<td>SP15600</td>
+<td><span class="status-dot" style="background:#ff9800"></span>即将缺货</td>
+<td>43</td>
+<td>15</td>
+<td>20</td>
+<td style="font-weight:700;color:#ef5350">32</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1方框款黑色</td>
+<td>SP16109</td>
+<td><span class="status-dot" style="background:#ff9800"></span>即将缺货</td>
+<td>44</td>
+<td>15</td>
+<td>21</td>
+<td style="font-weight:700;color:#ef5350">31</td>
+<td>华南佛山三水</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜G1_TG_SG02_眉框黑色_2+32GB_长续航版</td>
+<td>SP16202</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>64</td>
+<td>15</td>
+<td>30</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华南佛山三水</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1 充电夹黑色</td>
+<td>SP16114</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>68</td>
+<td>15</td>
+<td>32</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华中武汉</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1 MiniBag换电仓黑色</td>
+<td>SP16113</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>68</td>
+<td>15</td>
+<td>32</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华中武汉</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1方框款黑色长续航版</td>
+<td>SP15603</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>72</td>
+<td>15</td>
+<td>34</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1 风尚眉框 2+32GB 蔡司-防蓝光平光镜版标准版</td>
+<td>SP16355</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>78</td>
+<td>15</td>
+<td>36</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华南佛山三水</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜通用清洁巾</td>
+<td>SP16345</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>87</td>
+<td>15</td>
+<td>41</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华中武汉</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜S1圆框款黑色</td>
+<td>SP16367</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>95</td>
+<td>15</td>
+<td>44</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>夸克AI眼镜S1圆框款玳瑁色长续航版</td>
+<td>SP15605</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>96</td>
+<td>15</td>
+<td>45</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜S1方框款黑色</td>
+<td>SP16302</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>104</td>
+<td>15</td>
+<td>49</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1_TG_SG02_大方框黑色_2+64GB</td>
+<td>SP16164</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>112</td>
+<td>15</td>
+<td>52</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1_TG_SG02_大方框黑色_2+64GB_长续航版</td>
+<td>SP16204</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>210</td>
+<td>25</td>
+<td>59</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜S1方框款黑色长续航版</td>
+<td>SP16304</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>242</td>
+<td>25</td>
+<td>68</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1风尚眉框 2+32GB 蔡司-防蓝光平光镜版长续航版</td>
+<td>SP16356</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>149</td>
+<td>15</td>
+<td>70</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜S1 MiniMag备用电池黑色</td>
+<td>SP16341</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>152</td>
+<td>15</td>
+<td>71</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1_MiniMag备用电池_TG_SG02_P04</td>
+<td>SP16155</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>266</td>
+<td>25</td>
+<td>74</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华南佛山三水</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜S1圆框款黑色长续航版</td>
+<td>SP16368</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>187</td>
+<td>15</td>
+<td>87</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华中武汉</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1礼盒版</td>
+<td>SP16433</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>397</td>
+<td>25</td>
+<td>111</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华北天津武清</td>
+</tr>
+
+<tr>
+<td>千问AI眼镜G1 MiniBag换电仓_TG_SG02_P01</td>
+<td>SP16154</td>
+<td><span class="status-dot" style="background:#4caf50"></span>库存充足</td>
+<td>554</td>
+<td>25</td>
+<td>155</td>
+<td style="font-weight:700;color:#4caf50">-</td>
+<td>华东嘉兴南湖</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+<div class="footer">
+本看板由系统自动生成 · 数据来源于菜鸟全球商家中心 · 建议每日刷新
+</div>
+</div>
+
+<script>
+const products = [{"name":"夸克AI眼镜S1 MiniMag备用电池黑色","code":"SP16117","id":"1052277396025","barcode":"6977473963740","warehouses":{"华南佛山三水":{"realStock":1,"goodAvailable":0,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"}},"totalRealStock":1,"totalGoodAvailable":0,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":1,"distribution":[{"warehouse":"华南佛山三水","goodAvailable":0,"ratio":0}],"weeklySales":5,"safetyStock":10,"coverWeeks":3,"expectedConsumption":15,"needReplenish":true,"suggestedQty":25,"daysAvailable":0,"status":"danger","statusText":"库存不足","statusColor":"#ef5350"},{"name":"千问AI眼镜G1_TG_SG02_威灵顿框衬片_2+32GB_长续航版","code":"SP16538","id":"1055256291904","barcode":"6977473969087","warehouses":{"华东嘉兴南湖":{"realStock":24,"goodAvailable":24,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"}},"totalRealStock":24,"totalGoodAvailable":24,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":1,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":24,"ratio":"100.0"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":51,"daysAvailable":11,"status":"danger","statusText":"库存不足","statusColor":"#ef5350"},{"name":"夸克AI眼镜S1圆框款玳瑁色","code":"SP16112","id":"1052275992127","barcode":"6977473963696","warehouses":{"华北天津武清":{"realStock":9,"goodAvailable":9,"inTransit":8,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":13,"goodAvailable":11,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":9,"goodAvailable":9,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":31,"totalGoodAvailable":29,"totalInTransit":8,"totalFrozen":0,"totalDefective":0,"warehouseCount":3,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":11,"ratio":"37.9"},{"warehouse":"华北天津武清","goodAvailable":9,"ratio":"31.0"},{"warehouse":"华中武汉","goodAvailable":9,"ratio":"31.0"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":46,"daysAvailable":14,"status":"danger","statusText":"库存不足","statusColor":"#ef5350"},{"name":"夸克AI眼镜S1 充电盒黑色","code":"SP16115","id":"1049649347243","barcode":"6977473963726","warehouses":{"华北天津武清":{"realStock":3,"goodAvailable":3,"inTransit":6,"frozen":0,"warehouseCode":"TSN203"},"华南佛山三水":{"realStock":4,"goodAvailable":4,"inTransit":9,"frozen":0,"warehouseCode":"CAN237"},"华中武汉":{"realStock":11,"goodAvailable":11,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华东嘉兴南湖":{"realStock":15,"goodAvailable":15,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"}},"totalRealStock":33,"totalGoodAvailable":33,"totalInTransit":15,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":15,"ratio":"45.5"},{"warehouse":"华中武汉","goodAvailable":11,"ratio":"33.3"},{"warehouse":"华南佛山三水","goodAvailable":4,"ratio":"12.1"},{"warehouse":"华北天津武清","goodAvailable":3,"ratio":"9.1"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":42,"daysAvailable":15,"status":"warning","statusText":"即将缺货","statusColor":"#ff9800"},{"name":"夸克AI眼镜 G1 风尚眉框 2+32GB","code":"SP15654","id":"1049651367505","barcode":"6977473964365","warehouses":{"华北天津武清":{"realStock":7,"goodAvailable":7,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华中武汉":{"realStock":4,"goodAvailable":3,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华东嘉兴南湖":{"realStock":11,"goodAvailable":11,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"东北沈阳于洪":{"realStock":5,"goodAvailable":4,"inTransit":0,"frozen":0,"warehouseCode":"SHE217"},"华南佛山三水":{"realStock":5,"goodAvailable":5,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"西北西安未央":{"realStock":8,"goodAvailable":8,"inTransit":0,"frozen":0,"warehouseCode":"XIY202"}},"totalRealStock":40,"totalGoodAvailable":38,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":6,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":11,"ratio":"28.9"},{"warehouse":"西北西安未央","goodAvailable":8,"ratio":"21.1"},{"warehouse":"华北天津武清","goodAvailable":7,"ratio":"18.4"},{"warehouse":"华南佛山三水","goodAvailable":5,"ratio":"13.2"},{"warehouse":"东北沈阳于洪","goodAvailable":4,"ratio":"10.5"},{"warehouse":"华中武汉","goodAvailable":3,"ratio":"7.9"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":37,"daysAvailable":18,"status":"warning","statusText":"即将缺货","statusColor":"#ff9800"},{"name":"夸克AI眼镜S1 方框太阳镜夹片黑色","code":"SP16118","id":"1050408166676","barcode":"6977473963757","warehouses":{"华南佛山三水":{"realStock":2,"goodAvailable":2,"inTransit":18,"frozen":0,"warehouseCode":"CAN237"},"华东嘉兴南湖":{"realStock":21,"goodAvailable":21,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":15,"goodAvailable":15,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":38,"totalGoodAvailable":38,"totalInTransit":18,"totalFrozen":0,"totalDefective":0,"warehouseCount":3,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":21,"ratio":"55.3"},{"warehouse":"华中武汉","goodAvailable":15,"ratio":"39.5"},{"warehouse":"华南佛山三水","goodAvailable":2,"ratio":"5.3"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":37,"daysAvailable":18,"status":"warning","statusText":"即将缺货","statusColor":"#ff9800"},{"name":"夸克AI眼镜S1 圆框太阳镜夹片黑色","code":"SP15660","id":"1051375937455","barcode":"6977473964457","warehouses":{"华北天津武清":{"realStock":10,"goodAvailable":10,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华南佛山三水":{"realStock":9,"goodAvailable":9,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华东嘉兴南湖":{"realStock":12,"goodAvailable":12,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"}},"totalRealStock":40,"totalGoodAvailable":40,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":3,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":12,"ratio":"30.0"},{"warehouse":"华北天津武清","goodAvailable":10,"ratio":"25.0"},{"warehouse":"华南佛山三水","goodAvailable":9,"ratio":"22.5"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":35,"daysAvailable":19,"status":"warning","statusText":"即将缺货","statusColor":"#ff9800"},{"name":"千问AI眼镜G1_TG_SG02_威灵顿框衬片_2+32GB","code":"SP16537","id":"1056035722733","barcode":"6977473969070","warehouses":{"华东嘉兴南湖":{"realStock":40,"goodAvailable":40,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"}},"totalRealStock":40,"totalGoodAvailable":40,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":1,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":40,"ratio":"100.0"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":35,"daysAvailable":19,"status":"warning","statusText":"即将缺货","statusColor":"#ff9800"},{"name":"夸克AI眼镜通用type-c充电线","code":"SP15600","id":"1051376433059","barcode":"6977473963856","warehouses":{"华北天津武清":{"realStock":10,"goodAvailable":10,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":14,"goodAvailable":14,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":13,"goodAvailable":13,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华南佛山三水":{"realStock":6,"goodAvailable":6,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"}},"totalRealStock":43,"totalGoodAvailable":43,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":14,"ratio":"32.6"},{"warehouse":"华中武汉","goodAvailable":13,"ratio":"30.2"},{"warehouse":"华北天津武清","goodAvailable":10,"ratio":"23.3"},{"warehouse":"华南佛山三水","goodAvailable":6,"ratio":"14.0"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":32,"daysAvailable":20,"status":"warning","statusText":"即将缺货","statusColor":"#ff9800"},{"name":"夸克AI眼镜S1方框款黑色","code":"SP16109","id":"1050406466181","barcode":"6977473963665","warehouses":{"华南佛山三水":{"realStock":44,"goodAvailable":44,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"}},"totalRealStock":44,"totalGoodAvailable":44,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":1,"distribution":[{"warehouse":"华南佛山三水","goodAvailable":44,"ratio":"100.0"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":true,"suggestedQty":31,"daysAvailable":21,"status":"warning","statusText":"即将缺货","statusColor":"#ff9800"},{"name":"夸克AI眼镜G1_TG_SG02_眉框黑色_2+32GB_长续航版","code":"SP16202","id":"1052279004937","barcode":"6977473965959","warehouses":{"东北沈阳于洪":{"realStock":8,"goodAvailable":8,"inTransit":0,"frozen":0,"warehouseCode":"SHE217"},"华北天津武清":{"realStock":8,"goodAvailable":8,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"西北西安未央":{"realStock":8,"goodAvailable":8,"inTransit":0,"frozen":0,"warehouseCode":"XIY202"},"华东嘉兴南湖":{"realStock":8,"goodAvailable":8,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华南佛山三水":{"realStock":16,"goodAvailable":16,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华中武汉":{"realStock":16,"goodAvailable":16,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":64,"totalGoodAvailable":64,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":6,"distribution":[{"warehouse":"华南佛山三水","goodAvailable":16,"ratio":"25.0"},{"warehouse":"华中武汉","goodAvailable":16,"ratio":"25.0"},{"warehouse":"东北沈阳于洪","goodAvailable":8,"ratio":"12.5"},{"warehouse":"华北天津武清","goodAvailable":8,"ratio":"12.5"},{"warehouse":"西北西安未央","goodAvailable":8,"ratio":"12.5"},{"warehouse":"华东嘉兴南湖","goodAvailable":8,"ratio":"12.5"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":30,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"夸克AI眼镜S1 充电夹黑色","code":"SP16114","id":"1049648951619","barcode":"6977473963719","warehouses":{"华北天津武清":{"realStock":14,"goodAvailable":14,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":19,"goodAvailable":19,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华南佛山三水":{"realStock":15,"goodAvailable":15,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华中武汉":{"realStock":20,"goodAvailable":20,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":68,"totalGoodAvailable":68,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华中武汉","goodAvailable":20,"ratio":"29.4"},{"warehouse":"华东嘉兴南湖","goodAvailable":19,"ratio":"27.9"},{"warehouse":"华南佛山三水","goodAvailable":15,"ratio":"22.1"},{"warehouse":"华北天津武清","goodAvailable":14,"ratio":"20.6"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":32,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"夸克AI眼镜S1 MiniBag换电仓黑色","code":"SP16113","id":"1050407806528","barcode":"6977473963702","warehouses":{"华北天津武清":{"realStock":15,"goodAvailable":15,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华南佛山三水":{"realStock":14,"goodAvailable":14,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华东嘉兴南湖":{"realStock":19,"goodAvailable":19,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":20,"goodAvailable":20,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":68,"totalGoodAvailable":68,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华中武汉","goodAvailable":20,"ratio":"29.4"},{"warehouse":"华东嘉兴南湖","goodAvailable":19,"ratio":"27.9"},{"warehouse":"华北天津武清","goodAvailable":15,"ratio":"22.1"},{"warehouse":"华南佛山三水","goodAvailable":14,"ratio":"20.6"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":32,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"夸克AI眼镜S1方框款黑色长续航版","code":"SP15603","id":"1051374669209","barcode":"6977473963887","warehouses":{"华中武汉":{"realStock":4,"goodAvailable":3,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华南佛山三水":{"realStock":29,"goodAvailable":29,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华东嘉兴南湖":{"realStock":44,"goodAvailable":40,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"}},"totalRealStock":77,"totalGoodAvailable":72,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":3,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":40,"ratio":"55.6"},{"warehouse":"华南佛山三水","goodAvailable":29,"ratio":"40.3"},{"warehouse":"华中武汉","goodAvailable":3,"ratio":"4.2"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":34,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜G1 风尚眉框 2+32GB 蔡司-防蓝光平光镜版标准版","code":"SP16355","id":"1052280164624","barcode":"6977473967250","warehouses":{"东北沈阳于洪":{"realStock":7,"goodAvailable":5,"inTransit":0,"frozen":0,"warehouseCode":"SHE217"},"华南佛山三水":{"realStock":23,"goodAvailable":23,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"西北西安未央":{"realStock":10,"goodAvailable":10,"inTransit":0,"frozen":0,"warehouseCode":"XIY202"},"华北天津武清":{"realStock":10,"goodAvailable":10,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":17,"goodAvailable":17,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":14,"goodAvailable":13,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":81,"totalGoodAvailable":78,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":6,"distribution":[{"warehouse":"华南佛山三水","goodAvailable":23,"ratio":"29.5"},{"warehouse":"华东嘉兴南湖","goodAvailable":17,"ratio":"21.8"},{"warehouse":"华中武汉","goodAvailable":13,"ratio":"16.7"},{"warehouse":"西北西安未央","goodAvailable":10,"ratio":"12.8"},{"warehouse":"华北天津武清","goodAvailable":10,"ratio":"12.8"},{"warehouse":"东北沈阳于洪","goodAvailable":5,"ratio":"6.4"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":36,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜通用清洁巾","code":"SP16345","id":"1052270956451","barcode":"6977473967205","warehouses":{"华北天津武清":{"realStock":17,"goodAvailable":17,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":27,"goodAvailable":26,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华南佛山三水":{"realStock":17,"goodAvailable":17,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华中武汉":{"realStock":27,"goodAvailable":27,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":88,"totalGoodAvailable":87,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华中武汉","goodAvailable":27,"ratio":"31.0"},{"warehouse":"华东嘉兴南湖","goodAvailable":26,"ratio":"29.9"},{"warehouse":"华北天津武清","goodAvailable":17,"ratio":"19.5"},{"warehouse":"华南佛山三水","goodAvailable":17,"ratio":"19.5"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":41,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜S1圆框款黑色","code":"SP16367","id":"1050408198422","barcode":"6977473967373","warehouses":{"华北天津武清":{"realStock":20,"goodAvailable":20,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":28,"goodAvailable":28,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":28,"goodAvailable":28,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华南佛山三水":{"realStock":20,"goodAvailable":19,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"}},"totalRealStock":96,"totalGoodAvailable":95,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":28,"ratio":"29.5"},{"warehouse":"华中武汉","goodAvailable":28,"ratio":"29.5"},{"warehouse":"华北天津武清","goodAvailable":20,"ratio":"21.1"},{"warehouse":"华南佛山三水","goodAvailable":19,"ratio":"20.0"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":44,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"夸克AI眼镜S1圆框款玳瑁色长续航版","code":"SP15605","id":"1052276620357","barcode":"6977473963917","warehouses":{"华北天津武清":{"realStock":1,"goodAvailable":1,"inTransit":8,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":56,"goodAvailable":53,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":43,"goodAvailable":42,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":100,"totalGoodAvailable":96,"totalInTransit":8,"totalFrozen":0,"totalDefective":0,"warehouseCount":3,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":53,"ratio":"55.2"},{"warehouse":"华中武汉","goodAvailable":42,"ratio":"43.8"},{"warehouse":"华北天津武清","goodAvailable":1,"ratio":"1.0"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":45,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜S1方框款黑色","code":"SP16302","id":"1050407722675","barcode":"6977473966710","warehouses":{"华北天津武清":{"realStock":26,"goodAvailable":26,"inTransit":8,"frozen":0,"warehouseCode":"TSN203"},"华中武汉":{"realStock":30,"goodAvailable":29,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华南佛山三水":{"realStock":16,"goodAvailable":14,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华东嘉兴南湖":{"realStock":37,"goodAvailable":35,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"}},"totalRealStock":109,"totalGoodAvailable":104,"totalInTransit":8,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":35,"ratio":"33.7"},{"warehouse":"华中武汉","goodAvailable":29,"ratio":"27.9"},{"warehouse":"华北天津武清","goodAvailable":26,"ratio":"25.0"},{"warehouse":"华南佛山三水","goodAvailable":14,"ratio":"13.5"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":49,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜G1_TG_SG02_大方框黑色_2+64GB","code":"SP16164","id":"1051378637004","barcode":"6977473965133","warehouses":{"东北沈阳于洪":{"realStock":5,"goodAvailable":5,"inTransit":0,"frozen":0,"warehouseCode":"SHE217"},"华北天津武清":{"realStock":21,"goodAvailable":21,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华中武汉":{"realStock":22,"goodAvailable":22,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华东嘉兴南湖":{"realStock":36,"goodAvailable":35,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华南佛山三水":{"realStock":15,"goodAvailable":15,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"西北西安未央":{"realStock":14,"goodAvailable":14,"inTransit":0,"frozen":0,"warehouseCode":"XIY202"}},"totalRealStock":113,"totalGoodAvailable":112,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":6,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":35,"ratio":"31.3"},{"warehouse":"华中武汉","goodAvailable":22,"ratio":"19.6"},{"warehouse":"华北天津武清","goodAvailable":21,"ratio":"18.8"},{"warehouse":"华南佛山三水","goodAvailable":15,"ratio":"13.4"},{"warehouse":"西北西安未央","goodAvailable":14,"ratio":"12.5"},{"warehouse":"东北沈阳于洪","goodAvailable":5,"ratio":"4.5"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":52,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜G1_TG_SG02_大方框黑色_2+64GB_长续航版","code":"SP16204","id":"1051378173922","barcode":"6977473965621","warehouses":{"东北沈阳于洪":{"realStock":15,"goodAvailable":14,"inTransit":0,"frozen":0,"warehouseCode":"SHE217"},"华东嘉兴南湖":{"realStock":61,"goodAvailable":61,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":42,"goodAvailable":42,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华南佛山三水":{"realStock":39,"goodAvailable":37,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华北天津武清":{"realStock":33,"goodAvailable":33,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"西北西安未央":{"realStock":23,"goodAvailable":23,"inTransit":0,"frozen":0,"warehouseCode":"XIY202"}},"totalRealStock":213,"totalGoodAvailable":210,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":6,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":61,"ratio":"29.0"},{"warehouse":"华中武汉","goodAvailable":42,"ratio":"20.0"},{"warehouse":"华南佛山三水","goodAvailable":37,"ratio":"17.6"},{"warehouse":"华北天津武清","goodAvailable":33,"ratio":"15.7"},{"warehouse":"西北西安未央","goodAvailable":23,"ratio":"11.0"},{"warehouse":"东北沈阳于洪","goodAvailable":14,"ratio":"6.7"}],"weeklySales":25,"safetyStock":50,"coverWeeks":3,"expectedConsumption":75,"needReplenish":false,"suggestedQty":0,"daysAvailable":59,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜S1方框款黑色长续航版","code":"SP16304","id":"1052277312952","barcode":"6977473966734","warehouses":{"华南佛山三水":{"realStock":45,"goodAvailable":44,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华北天津武清":{"realStock":53,"goodAvailable":53,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":77,"goodAvailable":77,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":68,"goodAvailable":68,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":243,"totalGoodAvailable":242,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":77,"ratio":"31.8"},{"warehouse":"华中武汉","goodAvailable":68,"ratio":"28.1"},{"warehouse":"华北天津武清","goodAvailable":53,"ratio":"21.9"},{"warehouse":"华南佛山三水","goodAvailable":44,"ratio":"18.2"}],"weeklySales":25,"safetyStock":50,"coverWeeks":3,"expectedConsumption":75,"needReplenish":false,"suggestedQty":0,"daysAvailable":68,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜G1风尚眉框 2+32GB 蔡司-防蓝光平光镜版长续航版","code":"SP16356","id":"1052280520429","barcode":"6977473967267","warehouses":{"东北沈阳于洪":{"realStock":14,"goodAvailable":14,"inTransit":0,"frozen":0,"warehouseCode":"SHE217"},"华东嘉兴南湖":{"realStock":43,"goodAvailable":43,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"西北西安未央":{"realStock":19,"goodAvailable":18,"inTransit":0,"frozen":0,"warehouseCode":"XIY202"},"华北天津武清":{"realStock":22,"goodAvailable":22,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华中武汉":{"realStock":31,"goodAvailable":30,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":151,"totalGoodAvailable":149,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":5,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":43,"ratio":"28.9"},{"warehouse":"华中武汉","goodAvailable":30,"ratio":"20.1"},{"warehouse":"华北天津武清","goodAvailable":22,"ratio":"14.8"},{"warehouse":"西北西安未央","goodAvailable":18,"ratio":"12.1"},{"warehouse":"东北沈阳于洪","goodAvailable":14,"ratio":"9.4"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":70,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜S1 MiniMag备用电池黑色","code":"SP16341","id":"1055595434753","barcode":"6977473967168","warehouses":{"华中武汉":{"realStock":64,"goodAvailable":62,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华东嘉兴南湖":{"realStock":99,"goodAvailable":90,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"}},"totalRealStock":163,"totalGoodAvailable":152,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":2,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":90,"ratio":"59.2"},{"warehouse":"华中武汉","goodAvailable":62,"ratio":"40.8"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":71,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜G1_MiniMag备用电池_TG_SG02_P04","code":"SP16155","id":"1052277660577","barcode":"6977473964938","warehouses":{"东北沈阳于洪":{"realStock":18,"goodAvailable":14,"inTransit":0,"frozen":0,"warehouseCode":"SHE217"},"华中武汉":{"realStock":67,"goodAvailable":65,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华南佛山三水":{"realStock":69,"goodAvailable":67,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"西北西安未央":{"realStock":42,"goodAvailable":41,"inTransit":0,"frozen":0,"warehouseCode":"XIY202"}},"totalRealStock":281,"totalGoodAvailable":266,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华南佛山三水","goodAvailable":67,"ratio":"25.2"},{"warehouse":"华中武汉","goodAvailable":65,"ratio":"24.4"},{"warehouse":"西北西安未央","goodAvailable":41,"ratio":"15.4"},{"warehouse":"东北沈阳于洪","goodAvailable":14,"ratio":"5.3"}],"weeklySales":25,"safetyStock":50,"coverWeeks":3,"expectedConsumption":75,"needReplenish":false,"suggestedQty":0,"daysAvailable":74,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜S1圆框款黑色长续航版","code":"SP16368","id":"1051141245832","barcode":"6977473967380","warehouses":{"华北天津武清":{"realStock":36,"goodAvailable":36,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华中武汉":{"realStock":57,"goodAvailable":57,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"},"华南佛山三水":{"realStock":39,"goodAvailable":39,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华东嘉兴南湖":{"realStock":55,"goodAvailable":55,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"}},"totalRealStock":187,"totalGoodAvailable":187,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华中武汉","goodAvailable":57,"ratio":"30.5"},{"warehouse":"华东嘉兴南湖","goodAvailable":55,"ratio":"29.4"},{"warehouse":"华南佛山三水","goodAvailable":39,"ratio":"20.9"},{"warehouse":"华北天津武清","goodAvailable":36,"ratio":"19.3"}],"weeklySales":15,"safetyStock":30,"coverWeeks":3,"expectedConsumption":45,"needReplenish":false,"suggestedQty":0,"daysAvailable":87,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜G1礼盒版","code":"SP16433","id":"1052931093493","barcode":"6977473968073","warehouses":{"华南佛山三水":{"realStock":96,"goodAvailable":96,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华北天津武清":{"realStock":104,"goodAvailable":104,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":93,"goodAvailable":93,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":104,"goodAvailable":104,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":397,"totalGoodAvailable":397,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":4,"distribution":[{"warehouse":"华北天津武清","goodAvailable":104,"ratio":"26.2"},{"warehouse":"华中武汉","goodAvailable":104,"ratio":"26.2"},{"warehouse":"华南佛山三水","goodAvailable":96,"ratio":"24.2"},{"warehouse":"华东嘉兴南湖","goodAvailable":93,"ratio":"23.4"}],"weeklySales":25,"safetyStock":50,"coverWeeks":3,"expectedConsumption":75,"needReplenish":false,"suggestedQty":0,"daysAvailable":111,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"},{"name":"千问AI眼镜G1 MiniBag换电仓_TG_SG02_P01","code":"SP16154","id":"1051376625125","barcode":"6977473964921","warehouses":{"东北沈阳于洪":{"realStock":28,"goodAvailable":28,"inTransit":0,"frozen":0,"warehouseCode":"SHE217"},"西北西安未央":{"realStock":55,"goodAvailable":55,"inTransit":0,"frozen":0,"warehouseCode":"XIY202"},"华南佛山三水":{"realStock":112,"goodAvailable":112,"inTransit":0,"frozen":0,"warehouseCode":"CAN237"},"华北天津武清":{"realStock":83,"goodAvailable":83,"inTransit":0,"frozen":0,"warehouseCode":"TSN203"},"华东嘉兴南湖":{"realStock":164,"goodAvailable":164,"inTransit":0,"frozen":0,"warehouseCode":"JIX236"},"华中武汉":{"realStock":112,"goodAvailable":112,"inTransit":0,"frozen":0,"warehouseCode":"WUH249"}},"totalRealStock":554,"totalGoodAvailable":554,"totalInTransit":0,"totalFrozen":0,"totalDefective":0,"warehouseCount":6,"distribution":[{"warehouse":"华东嘉兴南湖","goodAvailable":164,"ratio":"29.6"},{"warehouse":"华南佛山三水","goodAvailable":112,"ratio":"20.2"},{"warehouse":"华中武汉","goodAvailable":112,"ratio":"20.2"},{"warehouse":"华北天津武清","goodAvailable":83,"ratio":"15.0"},{"warehouse":"西北西安未央","goodAvailable":55,"ratio":"9.9"},{"warehouse":"东北沈阳于洪","goodAvailable":28,"ratio":"5.1"}],"weeklySales":25,"safetyStock":50,"coverWeeks":3,"expectedConsumption":75,"needReplenish":false,"suggestedQty":0,"daysAvailable":155,"status":"safe","statusText":"库存充足","statusColor":"#4caf50"}];
+const warehouseNames = ["华东嘉兴南湖","华中武汉","华南佛山三水","华北天津武清","西北西安未央","东北沈阳于洪"];
+const warehouseColors = ["#667eea","#764ba2","#f093fb","#f5576c","#4facfe","#00f2fe"];
+const warehouseData = [{"name":"华东嘉兴南湖","total":1011},{"name":"华中武汉","total":876},{"name":"华南佛山三水","total":636},{"name":"华北天津武清","total":524},{"name":"西北西安未央","total":177},{"name":"东北沈阳于洪","total":106}];
+
+// Warehouse pie chart
+new Chart(document.getElementById('warehousePie'), {
+  type: 'doughnut',
+  data: {
+    labels: warehouseData.map(w => w.name),
+    datasets: [{
+      data: warehouseData.map(w => w.total),
+      backgroundColor: warehouseColors,
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }
+  }
+});
+
+// Status pie chart
+new Chart(document.getElementById('statusPie'), {
+  type: 'doughnut',
+  data: {
+    labels: ['库存不足', '即将缺货', '库存充足'],
+    datasets: [{
+      data: [3, 7, 18],
+      backgroundColor: ['#ef5350', '#ff9800', '#4caf50'],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }
+  }
+});
+
+// Mini charts for each product
+products.forEach((p, idx) => {
+  const ctx = document.getElementById('chart-' + idx);
+  if (!ctx) return;
+  const whs = p.distribution;
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: whs.map(d => d.warehouse.substring(0, 4)),
+      datasets: [{
+        label: '库存量',
+        data: whs.map(d => d.goodAvailable),
+        backgroundColor: whs.map((_, i) => warehouseColors[i % warehouseColors.length]),
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+        y: { display: false, beginAtZero: true }
+      }
+    }
+  });
+});
+
+function filter(status) {
+  document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.product-card').forEach(card => {
+    card.classList.toggle('hidden', status !== 'all' && card.dataset.status !== status);
+  });
+}
+
+function updateProduct(idx) {
+  const p = products[idx];
+  const weeklySales = parseInt(document.getElementById('sales-' + idx).value) || 0;
+  const safetyStock = parseInt(document.getElementById('safety-' + idx).value) || 0;
+  const coverWeeks = 3;
+  const expected = weeklySales * coverWeeks;
+  const need = p.totalGoodAvailable < expected;
+  const suggested = need ? Math.max(0, expected - p.totalGoodAvailable + safetyStock) : 0;
+  const days = weeklySales > 0 ? Math.round((p.totalGoodAvailable / weeklySales) * 7) : 999;
+
+  let status = 'safe', text = '库存充足', color = '#4caf50';
+  if (p.totalGoodAvailable <= safetyStock) { status = 'danger'; text = '库存不足'; color = '#ef5350'; }
+  else if (p.totalGoodAvailable < expected) { status = 'warning'; text = '即将缺货'; color = '#ff9800'; }
+
+  const sugg = document.getElementById('sugg-' + idx);
+  sugg.className = 'suggestion ' + status;
+  sugg.innerHTML = need
+    ? '<strong>建议补货 ' + suggested + ' 件</strong>（覆盖 ' + coverWeeks + ' 周消耗，当前可售约 ' + days + ' 天）'
+    : '库存充足，无需补货（当前可售约 ' + days + ' 天）';
+}
+
+function exportTable() {
+  const rows = products.map(p => ({
+    产品名称: p.name, 编码: p.code, 状态: p.statusText, 良品可用: p.totalGoodAvailable,
+    周销量: p.weeklySales, 可售天数: p.daysAvailable, 建议补货量: p.needReplenish ? p.suggestedQty : 0,
+    分布仓库: p.distribution.map(d => d.warehouse + ':' + d.goodAvailable).join('; ')
+  }));
+  const headers = Object.keys(rows[0]);
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => '"' + String(r[h]).replace(/"/g, '""') + '"').join(','))].join('
+');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '补货建议表_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
