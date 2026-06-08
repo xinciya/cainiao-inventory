@@ -2227,9 +2227,8 @@ function exportTable() {
     分布仓库: p.distribution.map(d => d.warehouse + ':' + d.goodAvailable).join('; ')
   }));
   const headers = Object.keys(rows[0]);
-  const csv = [headers.join(','), ...rows.map(r => headers.map(h => '"' + String(r[h]).replace(/"/g, '""') + '"').join(','))].join('
-');
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv' });
+const csv = [headers.join(','), ...rows.map(r => headers.map(h => '"' + String(r[h]).replace(/"/g, '""') + '"').join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '补货建议表_' + new Date().toISOString().slice(0, 10) + '.csv';
