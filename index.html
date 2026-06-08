@@ -137,6 +137,9 @@ header .hbadge:nth-child(4){animation-delay:.3s}
 <button class="btn" onclick="filter('danger')">库存不足</button>
 <button class="btn" onclick="filter('warning')">即将缺货</button>
 <button class="btn" onclick="filter('safe')">库存充足</button>
+<span style="width:1px;background:#e0e0e0;margin:0 4px"></span>
+<button class="btn" onclick="filterByType('主机')" style="border-color:#2196f3;color:#2196f3">🥽 仅主机</button>
+<button class="btn" onclick="filterByType('配件')" style="border-color:#ff9800;color:#ff9800">🔌 仅配件</button>
 <button class="btn btn-export" onclick="exportTable()">导出补货表</button>
 </div>
 </div>
@@ -2155,7 +2158,7 @@ document.getElementById('statsBar').innerHTML = `
 <div class="stat-card warehouse"><div class="stat-label">仓库数</div><div class="stat-value">${warehouseNames.length}</div><div class="stat-desc">分布仓点</div></div>
 `;
 
-// SKU category grouping
+// SKU category grouping (品牌系列)
 function getCategory(name) {
   if (name.includes('夸克')) return { cat: '夸克系列', icon: '🔷' };
   if (name.includes('千问')) return { cat: '千问系列', icon: '🔶' };
@@ -2163,7 +2166,17 @@ function getCategory(name) {
   if (name.includes('充电') || name.includes('电池') || name.includes('仓')) return { cat: '电源配件', icon: '🔋' };
   return { cat: '其他配件', icon: '📦' };
 }
+// 主机/配件类型判断
+function getProductType(name) {
+  // 配件关键词：充电、电池、换电仓、夹片、清洁、type-c、礼盒、衬片
+  const accessoryKeywords = ['充电', '电池', '换电仓', '夹片', '清洁', 'type-c', 'Type-C', '镜巾', '巾'];
+  for (const kw of accessoryKeywords) {
+    if (name.includes(kw)) return { type: '配件', icon: '🔌' };
+  }
+  return { type: '主机', icon: '🥽' };
+}
 const catMap = {};
+const typeMap = { '主机': { icon: '🥽', products: [], totalGood: 0, danger: 0, warning: 0 }, '配件': { icon: '🔌', products: [], totalGood: 0, danger: 0, warning: 0 } };
 products.forEach(p => {
   const c = getCategory(p.name);
   if (!catMap[c.cat]) catMap[c.cat] = { icon: c.icon, products: [], totalGood: 0, danger: 0, warning: 0 };
@@ -2171,7 +2184,31 @@ products.forEach(p => {
   catMap[c.cat].totalGood += p.totalGoodAvailable;
   if (p.status === 'danger') catMap[c.cat].danger++;
   if (p.status === 'warning') catMap[c.cat].warning++;
+
+  const t = getProductType(p.name);
+  p.productType = t.type;
+  typeMap[t.type].products.push(p);
+  typeMap[t.type].totalGood += p.totalGoodAvailable;
+  if (p.status === 'danger') typeMap[t.type].danger++;
+  if (p.status === 'warning') typeMap[t.type].warning++;
 });
+
+// 主机/配件 概览
+const typeBar = document.createElement('div');
+typeBar.className = 'section';
+typeBar.innerHTML = `<div class="toolbar"><h2>主机 / 配件</h2></div>
+<div style="display:flex;gap:12px;flex-wrap:wrap">` +
+Object.entries(typeMap).map(([type, info]) => `
+<div class="type-card" data-type="${type}" onclick="filterType('${type}')" style="flex:1;min-width:240px;background:linear-gradient(135deg,${type === '主机' ? '#e3f2fd,#fff' : '#fff3e0,#fff'});border-radius:12px;padding:18px;border-left:4px solid ${type === '主机' ? '#2196f3' : '#ff9800'};box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer;transition:all .2s">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+<span style="font-size:24px">${info.icon}</span>
+<span style="font-size:16px;font-weight:700;color:#333">${type}</span>
+<span style="margin-left:auto;font-size:13px;font-weight:600;color:${type === '主机' ? '#2196f3' : '#ff9800'}">${info.products.length} SKU</span>
+</div>
+<div style="font-size:12px;color:#666;margin-top:4px">总库存 <strong style="color:#333;font-size:14px">${info.totalGood.toLocaleString()}</strong> 件</div>
+${info.danger > 0 ? `<div style="margin-top:6px;font-size:11px;color:#ef5350;font-weight:600">⚠️ ${info.danger} 个库存不足</div>` : ''}
+${info.warning > 0 && info.danger === 0 ? `<div style="margin-top:6px;font-size:11px;color:#ff9800;font-weight:600">⚡ ${info.warning} 个即将缺货</div>` : ''}
+</div>`).join('') + `</div>`;
 
 // Category summary bar
 const catBar = document.createElement('div');
@@ -2187,6 +2224,7 @@ ${info.danger > 0 ? `<div style="margin-top:6px;font-size:11px;color:#ef5350;fon
 ${info.warning > 0 && info.danger === 0 ? `<div style="margin-top:6px;font-size:11px;color:#ff9800;font-weight:600">⚡ ${info.warning} 个即将缺货</div>` : ''}
 </div>`).join('') + `</div>`;
 document.getElementById('productGrid').parentElement.insertBefore(catBar, document.getElementById('productGrid'));
+document.getElementById('productGrid').parentElement.insertBefore(typeBar, catBar);
 
 // Percentage plugin for center text
 const centerTextPlugin = {
@@ -2294,7 +2332,7 @@ function filter(status) {
   });
 }
 
-// Set category data on product cards for filtering
+// Set category and product type on cards for filtering
 document.querySelectorAll('.product-card').forEach(card => {
   const name = card.dataset.name;
   const cat = name.includes('夸克') ? '夸克系列' :
@@ -2302,6 +2340,10 @@ document.querySelectorAll('.product-card').forEach(card => {
               name.includes('清洁') || name.includes('液') ? '清洁护理' :
               name.includes('充电') || name.includes('电池') || name.includes('仓') ? '电源配件' : '其他配件';
   card.dataset.category = cat;
+  // 主机/配件
+  const accessoryKW = ['充电', '电池', '换电仓', '夹片', '清洁', 'type-c', 'Type-C', '镜巾', '巾'];
+  const isAccessory = accessoryKW.some(kw => name.includes(kw));
+  card.dataset.ptype = isAccessory ? '配件' : '主机';
 });
 
 function filterCategory(cat) {
@@ -2311,10 +2353,35 @@ function filterCategory(cat) {
     c.style.background = isActive ? 'linear-gradient(135deg,#fff5f5,#fff)' : 'linear-gradient(135deg,#f8f9fa,#fff)';
     c.style.boxShadow = isActive ? '0 4px 16px rgba(239,83,80,.15)' : '0 2px 8px rgba(0,0,0,.05)';
   });
+  document.querySelectorAll('.type-card').forEach(c => {
+    c.style.boxShadow = '0 2px 8px rgba(0,0,0,.05)';
+  });
   document.querySelectorAll('.product-card').forEach(card => {
     card.classList.toggle('hidden', card.dataset.category !== cat);
   });
+  document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
 }
+
+function filterByType(type) {
+  document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+  document.querySelectorAll('.product-card').forEach(card => {
+    card.classList.toggle('hidden', card.dataset.ptype !== type);
+  });
+  // 高亮对应的 type-card
+  document.querySelectorAll('.type-card').forEach(c => {
+    const isActive = c.dataset.type === type;
+    c.style.boxShadow = isActive ? '0 6px 20px rgba(33,150,243,.25)' : '0 2px 8px rgba(0,0,0,.05)';
+    c.style.transform = isActive ? 'translateY(-2px)' : 'translateY(0)';
+  });
+  document.querySelectorAll('.cat-card').forEach(c => {
+    c.style.borderLeftColor = '#667eea';
+    c.style.background = 'linear-gradient(135deg,#f8f9fa,#fff)';
+    c.style.boxShadow = '0 2px 8px rgba(0,0,0,.05)';
+  });
+}
+
+function filterType(type) { filterByType(type); }
 
 function updateProduct(idx) {
   const p = products[idx];
