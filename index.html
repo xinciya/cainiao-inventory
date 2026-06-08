@@ -2179,7 +2179,7 @@ catBar.className = 'section';
 catBar.innerHTML = `<div class="toolbar"><h2>品类概览</h2></div>
 <div style="display:flex;gap:12px;flex-wrap:wrap">` +
 Object.entries(catMap).map(([cat, info]) => `
-<div style="flex:1;min-width:180px;background:linear-gradient(135deg,#f8f9fa,#fff);border-radius:12px;padding:16px;border-left:4px solid #667eea;box-shadow:0 2px 8px rgba(0,0,0,.05)">
+<div class="cat-card" data-category="${cat}" onclick="filterCategory('${cat}')" style="flex:1;min-width:180px;background:linear-gradient(135deg,#f8f9fa,#fff);border-radius:12px;padding:16px;border-left:4px solid #667eea;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer;transition:all .2s">
 <div style="font-size:20px;margin-bottom:4px">${info.icon}</div>
 <div style="font-size:14px;font-weight:600;color:#333">${cat}</div>
 <div style="font-size:12px;color:#888;margin-top:4px">${info.products.length} 个 SKU · ${info.totalGood.toLocaleString()} 件库存</div>
@@ -2294,6 +2294,28 @@ function filter(status) {
   });
 }
 
+// Set category data on product cards for filtering
+document.querySelectorAll('.product-card').forEach(card => {
+  const name = card.dataset.name;
+  const cat = name.includes('夸克') ? '夸克系列' :
+              name.includes('千问') ? '千问系列' :
+              name.includes('清洁') || name.includes('液') ? '清洁护理' :
+              name.includes('充电') || name.includes('电池') || name.includes('仓') ? '电源配件' : '其他配件';
+  card.dataset.category = cat;
+});
+
+function filterCategory(cat) {
+  document.querySelectorAll('.cat-card').forEach(c => {
+    const isActive = c.dataset.category === cat;
+    c.style.borderLeftColor = isActive ? '#ef5350' : '#667eea';
+    c.style.background = isActive ? 'linear-gradient(135deg,#fff5f5,#fff)' : 'linear-gradient(135deg,#f8f9fa,#fff)';
+    c.style.boxShadow = isActive ? '0 4px 16px rgba(239,83,80,.15)' : '0 2px 8px rgba(0,0,0,.05)';
+  });
+  document.querySelectorAll('.product-card').forEach(card => {
+    card.classList.toggle('hidden', card.dataset.category !== cat);
+  });
+}
+
 function updateProduct(idx) {
   const p = products[idx];
   const weeklySales = parseInt(document.getElementById('sales-' + idx).value) || 0;
@@ -2331,4 +2353,4 @@ function exportTable() {
 }
 </script>
 </body>
-</html>%                                                                                                                zhurunxin@U-WQ2Q714L-2325 ~ % 
+</html>
