@@ -4,14 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>菜鸟库存监控看板 - 2026-06-08</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fa;color:#1a1a2e;line-height:1.6}
 .container{max-width:1600px;margin:0 auto;padding:20px}
-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:28px 32px;border-radius:16px;margin-bottom:20px;box-shadow:0 4px 20px rgba(102,126,234,0.3)}
-header h1{font-size:26px;font-weight:700;margin-bottom:6px}
-header p{opacity:.9;font-size:13px}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes floatUp{0%{transform:translateY(0) scale(1);opacity:.6}50%{transform:translateY(-20px) scale(1.2);opacity:1}100%{transform:translateY(-40px) scale(0);opacity:0}}
+@keyframes glowPulse{0%,100%{text-shadow:0 0 10px rgba(255,255,255,.3),0 0 20px rgba(255,255,255,.1)}50%{text-shadow:0 0 20px rgba(255,255,255,.6),0 0 40px rgba(255,255,255,.2)}}
+@keyframes slideIn{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+header{position:relative;overflow:hidden;background:linear-gradient(135deg,#667eea,#764ba2,#f093fb,#667eea);background-size:300% 300%;animation:gradientShift 8s ease infinite;color:white;padding:36px 40px;border-radius:16px;margin-bottom:20px;box-shadow:0 8px 32px rgba(102,126,234,.4)}
+header::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='20' cy='20' r='1' fill='rgba(255,255,255,.3)'/%3E%3Ccircle cx='80' cy='40' r='1.5' fill='rgba(255,255,255,.2)'/%3E%3Ccircle cx='40' cy='80' r='1' fill='rgba(255,255,255,.25)'/%3E%3Ccircle cx='90' cy='80' r='1' fill='rgba(255,255,255,.2)'/%3E%3Ccircle cx='10' cy='60' r='1.5' fill='rgba(255,255,255,.15)'/%3E%3C/svg%3E");animation:floatUp 6s ease-in-out infinite}
+header h1{font-size:32px;font-weight:800;margin-bottom:8px;animation:glowPulse 3s ease-in-out infinite;position:relative;z-index:1}
+header p{opacity:.85;font-size:14px;position:relative;z-index:1}
+header .badge-row{display:flex;gap:10px;margin-top:14px;position:relative;z-index:1;flex-wrap:wrap}
+header .hbadge{background:rgba(255,255,255,.15);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:20px;font-size:12px;font-weight:500;animation:slideIn .6s ease both}
+header .hbadge:nth-child(2){animation-delay:.1s}
+header .hbadge:nth-child(3){animation-delay:.2s}
+header .hbadge:nth-child(4){animation-delay:.3s}
 
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
 .stat-card{background:white;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-left:4px solid}
@@ -97,17 +107,16 @@ header p{opacity:.9;font-size:13px}
 <div class="container">
 <header>
 <h1>菜鸟库存监控看板</h1>
-<p>数据更新时间：2026/6/8 10:52:00 · 28 个产品 · 6 个仓库 · 共 110 条记录</p>
+<p>数据更新时间：2026/6/8 10:52:00 · <span id="header-sku">28</span> 个产品 · <span id="header-wh">6</span> 个仓库 · 共 110 条记录</p>
+<div class="badge-row">
+<span class="hbadge">实时监控</span>
+<span class="hbadge">6 个仓库</span>
+<span class="hbadge">28 个 SKU</span>
+<span class="hbadge">智能预警</span>
+</div>
 </header>
 
-<div class="stats">
-<div class="stat-card total"><div class="stat-label">总 SKU</div><div class="stat-value">28</div><div class="stat-desc">监控产品数</div></div>
-<div class="stat-card danger"><div class="stat-label">库存不足</div><div class="stat-value" style="color:#ef5350">3</div><div class="stat-desc">需立即补货</div></div>
-<div class="stat-card warning"><div class="stat-label">即将缺货</div><div class="stat-value" style="color:#ff9800">7</div><div class="stat-desc">建议安排补货</div></div>
-<div class="stat-card safe"><div class="stat-label">库存充足</div><div class="stat-value" style="color:#4caf50">18</div><div class="stat-desc">状态良好</div></div>
-<div class="stat-card warehouse"><div class="stat-label">总良品库存</div><div class="stat-value">3330</div><div class="stat-desc">可用库存合计</div></div>
-<div class="stat-card warehouse"><div class="stat-label">仓库数</div><div class="stat-value">6</div><div class="stat-desc">分布仓点</div></div>
-</div>
+<div class="stats" id="statsBar"></div>
 
 <div class="charts-grid">
 <div class="chart-box">
@@ -2130,6 +2139,87 @@ const warehouseNames = ["华东嘉兴南湖","华中武汉","华南佛山三水"
 const warehouseColors = ["#667eea","#764ba2","#f093fb","#f5576c","#4facfe","#00f2fe"];
 const warehouseData = [{"name":"华东嘉兴南湖","total":1011},{"name":"华中武汉","total":876},{"name":"华南佛山三水","total":636},{"name":"华北天津武清","total":524},{"name":"西北西安未央","total":177},{"name":"东北沈阳于洪","total":106}];
 
+// Dynamic stats cards
+const dangerCount = products.filter(p => p.status === 'danger').length;
+const warningCount = products.filter(p => p.status === 'warning').length;
+const safeCount = products.filter(p => p.status === 'safe').length;
+const totalGood = products.reduce((sum, p) => sum + p.totalGoodAvailable, 0);
+document.getElementById('header-sku').textContent = products.length;
+document.getElementById('header-wh').textContent = warehouseNames.length;
+document.getElementById('statsBar').innerHTML = `
+<div class="stat-card total"><div class="stat-label">总 SKU</div><div class="stat-value">${products.length}</div><div class="stat-desc">监控产品数</div></div>
+<div class="stat-card danger"><div class="stat-label">库存不足</div><div class="stat-value" style="color:#ef5350">${dangerCount}</div><div class="stat-desc">需立即补货</div></div>
+<div class="stat-card warning"><div class="stat-label">即将缺货</div><div class="stat-value" style="color:#ff9800">${warningCount}</div><div class="stat-desc">建议安排补货</div></div>
+<div class="stat-card safe"><div class="stat-label">库存充足</div><div class="stat-value" style="color:#4caf50">${safeCount}</div><div class="stat-desc">状态良好</div></div>
+<div class="stat-card warehouse"><div class="stat-label">总良品库存</div><div class="stat-value">${totalGood.toLocaleString()}</div><div class="stat-desc">可用库存合计</div></div>
+<div class="stat-card warehouse"><div class="stat-label">仓库数</div><div class="stat-value">${warehouseNames.length}</div><div class="stat-desc">分布仓点</div></div>
+`;
+
+// SKU category grouping
+function getCategory(name) {
+  if (name.includes('夸克')) return { cat: '夸克系列', icon: '🔷' };
+  if (name.includes('千问')) return { cat: '千问系列', icon: '🔶' };
+  if (name.includes('清洁') || name.includes('液')) return { cat: '清洁护理', icon: '💧' };
+  if (name.includes('充电') || name.includes('电池') || name.includes('仓')) return { cat: '电源配件', icon: '🔋' };
+  return { cat: '其他配件', icon: '📦' };
+}
+const catMap = {};
+products.forEach(p => {
+  const c = getCategory(p.name);
+  if (!catMap[c.cat]) catMap[c.cat] = { icon: c.icon, products: [], totalGood: 0, danger: 0, warning: 0 };
+  catMap[c.cat].products.push(p);
+  catMap[c.cat].totalGood += p.totalGoodAvailable;
+  if (p.status === 'danger') catMap[c.cat].danger++;
+  if (p.status === 'warning') catMap[c.cat].warning++;
+});
+
+// Category summary bar
+const catBar = document.createElement('div');
+catBar.className = 'section';
+catBar.innerHTML = `<div class="toolbar"><h2>品类概览</h2></div>
+<div style="display:flex;gap:12px;flex-wrap:wrap">` +
+Object.entries(catMap).map(([cat, info]) => `
+<div style="flex:1;min-width:180px;background:linear-gradient(135deg,#f8f9fa,#fff);border-radius:12px;padding:16px;border-left:4px solid #667eea;box-shadow:0 2px 8px rgba(0,0,0,.05)">
+<div style="font-size:20px;margin-bottom:4px">${info.icon}</div>
+<div style="font-size:14px;font-weight:600;color:#333">${cat}</div>
+<div style="font-size:12px;color:#888;margin-top:4px">${info.products.length} 个 SKU · ${info.totalGood.toLocaleString()} 件库存</div>
+${info.danger > 0 ? `<div style="margin-top:6px;font-size:11px;color:#ef5350;font-weight:600">⚠️ ${info.danger} 个库存不足</div>` : ''}
+${info.warning > 0 && info.danger === 0 ? `<div style="margin-top:6px;font-size:11px;color:#ff9800;font-weight:600">⚡ ${info.warning} 个即将缺货</div>` : ''}
+</div>`).join('') + `</div>`;
+document.getElementById('productGrid').parentElement.insertBefore(catBar, document.getElementById('productGrid'));
+
+// Percentage plugin for center text
+const centerTextPlugin = {
+  id: 'centerText',
+  afterDraw(chart) {
+    const { ctx, width, height } = chart;
+    const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    ctx.fillStyle = '#333';
+    ctx.fillText(total.toLocaleString(), width / 2, height / 2 - 8);
+    ctx.font = '12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.fillText('总计', width / 2, height / 2 + 12);
+    ctx.restore();
+  }
+};
+
+// Tooltip with percentage
+const tooltipPct = {
+  tooltip: {
+    callbacks: {
+      label(ctx) {
+        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+        const pct = ((ctx.raw / total) * 100).toFixed(1);
+        return ctx.label + ': ' + ctx.raw + ' (' + pct + '%)';
+      }
+    }
+  }
+};
+
 // Warehouse pie chart
 new Chart(document.getElementById('warehousePie'), {
   type: 'doughnut',
@@ -2143,25 +2233,30 @@ new Chart(document.getElementById('warehousePie'), {
   },
   options: {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }
-  }
+    plugins: { ...tooltipPct, legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } } },
+    cutout: '60%', radius: '90%'
+  },
+  plugins: [centerTextPlugin]
 });
 
 // Status pie chart
+const statusData = [dangerCount, warningCount, safeCount];
 new Chart(document.getElementById('statusPie'), {
   type: 'doughnut',
   data: {
     labels: ['库存不足', '即将缺货', '库存充足'],
     datasets: [{
-      data: [3, 7, 18],
+      data: statusData,
       backgroundColor: ['#ef5350', '#ff9800', '#4caf50'],
       borderWidth: 0
     }]
   },
   options: {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }
-  }
+    plugins: { ...tooltipPct, legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } } },
+    cutout: '60%', radius: '90%'
+  },
+  plugins: [centerTextPlugin]
 });
 
 // Mini charts for each product
@@ -2227,7 +2322,7 @@ function exportTable() {
     分布仓库: p.distribution.map(d => d.warehouse + ':' + d.goodAvailable).join('; ')
   }));
   const headers = Object.keys(rows[0]);
-const csv = [headers.join(','), ...rows.map(r => headers.map(h => '"' + String(r[h]).replace(/"/g, '""') + '"').join(','))].join('\n');
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => '"' + String(r[h]).replace(/"/g, '""') + '"').join(','))].join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2236,4 +2331,4 @@ const csv = [headers.join(','), ...rows.map(r => headers.map(h => '"' + String(r
 }
 </script>
 </body>
-</html>
+</html>%                                                                                                                zhurunxin@U-WQ2Q714L-2325 ~ % 
