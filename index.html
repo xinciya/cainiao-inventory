@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>菜鸟库存监控看板 - 2026-06-08</title>
+<title>抖音菜鸟仓监控</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -106,7 +106,7 @@ header .hbadge:nth-child(4){animation-delay:.3s}
 <body>
 <div class="container">
 <header>
-<h1>菜鸟库存监控看板</h1>
+<h1>抖音菜鸟仓监控</h1>
 <p>数据更新时间：2026/6/8 10:52:00 · <span id="header-sku">28</span> 个产品 · <span id="header-wh">6</span> 个仓库 · 共 110 条记录</p>
 <div class="badge-row">
 <span class="hbadge">实时监控</span>
@@ -2430,6 +2430,14 @@ function exportTable() {
   a.download = '补货建议表_' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
 }
+// 动态更新标题日期：从 header <p> 中提取数据更新时间
+(function(){
+  const p = document.querySelector('header p');
+  if(p){
+    const m = p.textContent.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if(m) document.title = '抖音菜鸟仓监控 - ' + m[1] + '-' + m[2].padStart(2,'0') + '-' + m[3].padStart(2,'0');
+  }
+})();
 </script>
 </body>
 </html>
