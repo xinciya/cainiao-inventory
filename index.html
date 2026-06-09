@@ -131,7 +131,7 @@ header .hbadge:nth-child(4){animation-delay:.3s}
 <div class="container">
 <header>
 <h1>抖音菜鸟仓监控</h1>
-<p id="headerInfo">数据更新时间：2026/6/9 15:07:34</p>
+<p id="headerInfo">数据更新时间：2026/6/9 15:14:24</p>
 <div class="badge-row">
 <span class="hbadge">实时监控</span>
 <span class="hbadge" id="hbWh"></span>
@@ -385,20 +385,36 @@ function renderDate(date) {
   const warehouseData = Object.entries(whTotal).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total);
 
   // 饼图（带百分比 tooltip）
-  const pctTooltip = { tooltip: { callbacks: { label: function(ctx) { const total = ctx.dataset.data.reduce((a,b) => a+b, 0); const pct = ((ctx.raw / total) * 100).toFixed(1); return ctx.label + ': ' + ctx.raw.toLocaleString() + ' (' + pct + '%)'; } } } };
+  function pctLabel(ctx) {
+    var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+    var pct = ((ctx.raw / total) * 100).toFixed(1);
+    return ctx.label + ': ' + ctx.raw.toLocaleString() + ' (' + pct + '%)';
+  }
 
   if (chartInstances.whPie) chartInstances.whPie.destroy();
   chartInstances.whPie = new Chart(document.getElementById('warehousePie'), {
     type: 'doughnut',
-    data: { labels: warehouseData.map(w => w.name), datasets: [{ data: warehouseData.map(w => w.total), backgroundColor: warehouseColors, borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { ...pctTooltip, legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } } }, cutout: '60%' }
+    data: { labels: warehouseData.map(function(w) { return w.name; }), datasets: [{ data: warehouseData.map(function(w) { return w.total; }), backgroundColor: warehouseColors, borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      plugins: {
+        tooltip: { callbacks: { label: pctLabel } },
+        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
+      }
+    }
   });
 
   if (chartInstances.statusPie) chartInstances.statusPie.destroy();
   chartInstances.statusPie = new Chart(document.getElementById('statusPie'), {
     type: 'doughnut',
     data: { labels: ['库存不足', '即将缺货', '库存充足'], datasets: [{ data: [dangerCount, warningCount, safeCount], backgroundColor: ['#ef5350', '#ff9800', '#4caf50'], borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { ...pctTooltip, legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } } }, cutout: '60%' }
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      plugins: {
+        tooltip: { callbacks: { label: pctLabel } },
+        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
+      }
+    }
   });
 
   // 品类概览
