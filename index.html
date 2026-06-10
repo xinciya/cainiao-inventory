@@ -128,6 +128,54 @@ header .hbadge:nth-child(4){animation-delay:.3s}
 </style>
 </head>
 <body>
+<div id="auth-gate" style="position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#667eea,#764ba2,#f093fb);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif">
+  <div style="background:white;padding:36px 40px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:340px">
+    <h2 style="margin:0 0 6px;font-size:20px;color:#1a1a2e">🔒 抖音菜鸟仓监控</h2>
+    <p style="margin:0 0 20px;font-size:13px;color:#666">请输入账号密码访问</p>
+    <input id="auth-user" type="text" placeholder="账号" autocomplete="off" style="width:100%;padding:10px 12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none" />
+    <input id="auth-pass" type="password" placeholder="密码" autocomplete="off" style="width:100%;padding:10px 12px;margin-bottom:14px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none" />
+    <button id="auth-btn" style="width:100%;padding:11px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">进入看板</button>
+    <p id="auth-msg" style="margin:10px 0 0;font-size:12px;color:#ef5350;min-height:16px"></p>
+  </div>
+</div>
+<style>body.locked{overflow:hidden}body.locked .container{filter:blur(8px);pointer-events:none;user-select:none}</style>
+<script>
+(function(){
+  const EXPECTED = '6734ce01030641b3520250a086a553083e7dd75f418c0ce3805d5b7a0548b6ee';
+  const gate = document.getElementById('auth-gate');
+  const msg = document.getElementById('auth-msg');
+  const userIn = document.getElementById('auth-user');
+  const passIn = document.getElementById('auth-pass');
+  const btn = document.getElementById('auth-btn');
+
+  if(sessionStorage.getItem('cainiao_auth_ok')==='1'){ gate.remove(); return; }
+  document.body.classList.add('locked');
+
+  async function sha256(s){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  async function tryLogin(){
+    msg.textContent = '';
+    const u = userIn.value.trim();
+    const p = passIn.value;
+    if(!u || !p){ msg.textContent='请输入账号和密码'; return; }
+    const h = await sha256(u + ':' + p);
+    if(h === EXPECTED){
+      sessionStorage.setItem('cainiao_auth_ok','1');
+      document.body.classList.remove('locked');
+      gate.remove();
+    } else {
+      msg.textContent = '账号或密码不正确';
+      passIn.value='';
+    }
+  }
+  btn.addEventListener('click', tryLogin);
+  passIn.addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+  userIn.addEventListener('keydown', e=>{ if(e.key==='Enter') passIn.focus(); });
+  setTimeout(()=>userIn.focus(), 100);
+})();
+</script>
 <div class="container">
 <header>
 <h1>抖音菜鸟仓监控</h1>
